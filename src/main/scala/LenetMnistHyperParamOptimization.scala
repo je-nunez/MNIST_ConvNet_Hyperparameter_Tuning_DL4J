@@ -48,6 +48,7 @@ import org.deeplearning4j.arbiter.optimize.config.OptimizationConfiguration
 import org.deeplearning4j.arbiter.optimize.generator.RandomSearchGenerator
 import org.deeplearning4j.arbiter.optimize.parameter.continuous.ContinuousParameterSpace
 import org.deeplearning4j.arbiter.optimize.parameter.discrete.DiscreteParameterSpace
+import org.deeplearning4j.arbiter.optimize.parameter.integer.IntegerParameterSpace
 import org.deeplearning4j.arbiter.optimize.runner.LocalOptimizationRunner
 import org.deeplearning4j.arbiter.scoring.impl.TestSetAccuracyScoreFunction
 import org.deeplearning4j.arbiter.task.MultiLayerNetworkTaskCreator
@@ -73,7 +74,11 @@ object LenetMnistHyperParamOptimization {
     // We call it the universe of values where the Monte Carlo method will randomly sample its values.
     val l2Universe = new ContinuousParameterSpace(0.000005, 0.0001)
     val globalLearningRateUniverse = new ContinuousParameterSpace(0.001, 0.1)
-    val updaters = new DiscreteParameterSpace(Updater.NESTEROVS)
+    val globalBiasLearningRateUniverse = new ContinuousParameterSpace(0.001, 0.01)
+    val updatersUniverse = new DiscreteParameterSpace(Updater.NESTEROVS)
+    val convolLayer1nOutUniverse = new IntegerParameterSpace(15, 25)
+    val convolLayer3nOutUniverse = new IntegerParameterSpace(40, 60)
+    val denseLayer5nOutUniverse = new IntegerParameterSpace(400, 600)
 
     println("Building templated CNN model for hyperparameter tuning....")
     val parameterizedNN =
@@ -82,17 +87,18 @@ object LenetMnistHyperParamOptimization {
         .iterations(iterations)
         .regularization(true)
         .l2(l2Universe)
-        .learningRate(globalLearningRateUniverse).biasLearningRate(0.003)
+        .learningRate(globalLearningRateUniverse)
+        .biasLearningRate(globalBiasLearningRateUniverse)
         // .learningRateDecayPolicy(LearningRatePolicy.Inverse).lrPolicyDecayRate(0.001).lrPolicyPower(0.75)
         .weightInit(WeightInit.XAVIER)
         .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-        .updater(updaters)
+        .updater(updatersUniverse)
         .addLayer(new ConvolutionLayerSpace.Builder()
                     .kernelSize(5, 5)
                     // nIn and nOut specify depth. nIn here is the nChannels and nOut is the number of filters to be applied
                     .nIn(nChannels)
                     .stride(1, 1)
-                    .nOut(20)
+                    .nOut(convolLayer1nOutUniverse)
                     .activation(Activation.IDENTITY)
                     .build()
               )
@@ -108,7 +114,7 @@ object LenetMnistHyperParamOptimization {
                     .kernelSize(5, 5)
                     // Note that nIn need not be specified in later layers
                     .stride(1, 1)
-                    .nOut(50)
+                    .nOut(convolLayer3nOutUniverse)
                     .activation(Activation.IDENTITY)
                     .build()
               )
@@ -120,7 +126,7 @@ object LenetMnistHyperParamOptimization {
               )
         .addLayer(new DenseLayerSpace.Builder()
                     .activation(Activation.RELU)
-                    .nOut(500)
+                    .nOut(denseLayer5nOutUniverse)
                     .build()
               )
         .addLayer(new OutputLayerSpace.Builder()
@@ -165,6 +171,16 @@ object LenetMnistHyperParamOptimization {
 
     val indexBestModel = optimRunner.bestScoreCandidateIndex
     val allModels = optimRunner.getResults
+
+    if (indexBestModel != -1) {
+        println(s"""Best model index: $indexBestModel,
+                    |with score: ${optimRunner.bestScore}
+                    |found among ${optimRunner.numCandidatesCompleted} candidate models completed"""
+                .stripMargin.replaceAll("\n", " ")
+               )
+    } else {
+        println(s"Best model couldn't be found. It seems that $stopAfterMinutes minutes weren't enough.")
+    }
 
   }
 
