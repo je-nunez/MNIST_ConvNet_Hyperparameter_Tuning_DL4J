@@ -155,17 +155,17 @@ object LenetMnistHyperParamOptimization {
 
     val dataProvider = MnistDataSetProvider
 
-    val optimizationConfig
-            = new OptimizationConfiguration.Builder()
-                    .terminationConditions(searchStopConditions.asJava)
-                    .candidateGenerator(nnCandidateGenerator)
-                    .scoreFunction(searchScoreFunction)
-                    .dataProvider(dataProvider)
-                    .build()
+    val optimizationConfig =
+      new OptimizationConfiguration.Builder()
+        .terminationConditions(searchStopConditions.asJava)
+        .candidateGenerator(nnCandidateGenerator)
+        .scoreFunction(searchScoreFunction)
+        .dataProvider(dataProvider)
+        .build()
 
     // Set up search to be executed locally on this (local) computer
-    val optimRunner
-            = new LocalOptimizationRunner(optimizationConfig, new MultiLayerNetworkTaskCreator())
+    val optimRunner =
+      new LocalOptimizationRunner(optimizationConfig, new MultiLayerNetworkTaskCreator())
 
     optimRunner.execute()
 
@@ -173,13 +173,13 @@ object LenetMnistHyperParamOptimization {
     val allModels = optimRunner.getResults
 
     if (indexBestModel != -1) {
-        println(s"""Best model index: $indexBestModel,
-                    |with score: ${optimRunner.bestScore}
-                    |found among ${optimRunner.numCandidatesCompleted} candidate models completed"""
-                .stripMargin.replaceAll("\n", " ")
-               )
+      println(s"""Best model index: $indexBestModel,
+                  |with score: ${optimRunner.bestScore}
+                  |found among ${optimRunner.numCandidatesCompleted} candidate models completed"""
+              .stripMargin.replaceAll("\n", " ")
+             )
     } else {
-        println(s"Best model couldn't be found. It seems that $stopAfterMinutes minutes weren't enough.")
+      println(s"Best model couldn't be found. It seems that $stopAfterMinutes minutes weren't enough.")
     }
 
   }
@@ -189,32 +189,32 @@ object LenetMnistHyperParamOptimization {
 
   object MnistDataSetProvider extends DataProvider {
 
-      override def trainData(dataParameters: Map[String, Object]): DataSetIterator = {
-          try {
-              if (dataParameters == null || dataParameters.isEmpty) {
-                  new MnistDataSetIterator(batchSize, 10000, false, true, true, seed)
-              }
-              if (dataParameters.containsKey("batchsize")) {
-                  val b = dataParameters.get("batchsize").asInstanceOf[Int]
-                  new MnistDataSetIterator(b, 10000, false, true, true, seed)
-              }
-              new MnistDataSetIterator(batchSize, 10000, false, true, true, seed)
-          } catch {
-              case e: Exception => throw new RuntimeException(e)
-          }
+    override def trainData(dataParameters: Map[String, Object]): DataSetIterator = {
+      try {
+        if (dataParameters == null || dataParameters.isEmpty) {
+          new MnistDataSetIterator(batchSize, 10000, false, true, true, seed)
+        }
+        if (dataParameters.containsKey("batchsize")) {
+          val b = dataParameters.get("batchsize").asInstanceOf[Int]
+          new MnistDataSetIterator(b, 10000, false, true, true, seed)
+        }
+        new MnistDataSetIterator(batchSize, 10000, false, true, true, seed)
+      } catch {
+        case e: Exception => throw new RuntimeException(e)
       }
+    }
 
-      override def testData(dataParameters: Map[String, Object]): DataSetIterator = {
-          trainData(dataParameters)
-      }
+    override def testData(dataParameters: Map[String, Object]): DataSetIterator = {
+      trainData(dataParameters)
+    }
 
-      override def getDataType: Class[_] = {
-          classOf[DataSetIterator]
-      }
+    override def getDataType: Class[_] = {
+      classOf[DataSetIterator]
+    }
 
-      override def toString: String = {
-          "MnistDataSetProvider()"
-      }
+    override def toString: String = {
+      "MnistDataSetProvider()"
+    }
   }
 
 }
