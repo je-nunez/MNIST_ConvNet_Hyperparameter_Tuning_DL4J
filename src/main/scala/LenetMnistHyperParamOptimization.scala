@@ -40,6 +40,7 @@ import org.deeplearning4j.arbiter.layers.DenseLayerSpace
 import org.deeplearning4j.arbiter.layers.OutputLayerSpace
 import org.deeplearning4j.arbiter.layers.SubsamplingLayerSpace
 import org.deeplearning4j.arbiter.optimize.api.CandidateGenerator
+import org.deeplearning4j.arbiter.optimize.api.OptimizationResult
 import org.deeplearning4j.arbiter.optimize.api.data.DataProvider
 import org.deeplearning4j.arbiter.optimize.api.termination.MaxCandidatesCondition
 import org.deeplearning4j.arbiter.optimize.api.termination.MaxTimeCondition
@@ -49,7 +50,11 @@ import org.deeplearning4j.arbiter.optimize.generator.RandomSearchGenerator
 import org.deeplearning4j.arbiter.optimize.parameter.continuous.ContinuousParameterSpace
 import org.deeplearning4j.arbiter.optimize.parameter.discrete.DiscreteParameterSpace
 import org.deeplearning4j.arbiter.optimize.parameter.integer.IntegerParameterSpace
+import org.deeplearning4j.arbiter.optimize.runner.CandidateInfo
+import org.deeplearning4j.arbiter.optimize.runner.CandidateStatus
+import org.deeplearning4j.arbiter.optimize.runner.IOptimizationRunner
 import org.deeplearning4j.arbiter.optimize.runner.LocalOptimizationRunner
+import org.deeplearning4j.arbiter.optimize.runner.listener.StatusListener
 import org.deeplearning4j.arbiter.scoring.impl.TestSetAccuracyScoreFunction
 import org.deeplearning4j.arbiter.task.MultiLayerNetworkTaskCreator
 
@@ -60,6 +65,7 @@ object LenetMnistHyperParamOptimization {
 
   val batchSize = 64         // Test batch size
   val seed = 123
+
 
   def main(args: Array[String]): Unit = {
     val nChannels = 1          // Number of input channels
@@ -167,6 +173,7 @@ object LenetMnistHyperParamOptimization {
     val optimRunner =
       new LocalOptimizationRunner(optimizationConfig, new MultiLayerNetworkTaskCreator())
 
+    optimRunner.addListeners(new MySimpleLoggingStatusListener())
     optimRunner.execute()
 
     val indexBestModel = optimRunner.bestScoreCandidateIndex
@@ -215,6 +222,48 @@ object LenetMnistHyperParamOptimization {
     override def toString: String = {
       "MnistDataSetProvider()"
     }
+  }
+
+
+  // a variation of DeepLearning4J Arbiter's "LoggingStatusListener":
+
+  class MySimpleLoggingStatusListener extends StatusListener {
+
+    // print a header with the neural-network candidate number, its score,
+    // and the actual valuesof the hyperparameter
+    println("Candidate         Score       Actual hyperparameter values...")
+
+
+    def onCandidateStatusChange(candidateInfo: CandidateInfo,
+                                runner: IOptimizationRunner,
+                                result: OptimizationResult): Unit = {
+      if(candidateInfo != null) {
+        if(candidateInfo.getExceptionStackTrace != null) {
+          System.err.println(s"Failed evaluating candidate: $candidateInfo")
+        } else if(candidateInfo.getCandidateStatus == CandidateStatus.Complete) {
+          // the analysis on this candidate neural network has been completed
+          val strBuild = new StringBuilder
+          val candidateNeuralNetworkScore = candidateInfo.getScore
+          val candidateNeuralNetworkHyperparams = candidateInfo.getFlatParams
+          strBuild ++= f"${candidateInfo.getIndex}%9d"
+          strBuild ++= f" ${candidateNeuralNetworkScore}%.17f"
+          candidateNeuralNetworkHyperparams.foreach(param => strBuild ++= f" $param%.16f")
+          println(strBuild.toString)
+        }
+      }
+    }
+
+    // all methods below are implemented to do nothing
+
+    def onInitialization(runner: IOptimizationRunner): Unit = { }
+
+    def onShutdown(runner: IOptimizationRunner): Unit = { }
+
+    def onRunnerStatusChange(runner: IOptimizationRunner): Unit = { }
+
+    def onCandidateIteration(candidateInfo: CandidateInfo,
+                             candidate: Object,
+                             iteration: Int): Unit = {}
   }
 
 }
